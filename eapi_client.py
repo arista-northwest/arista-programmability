@@ -13,8 +13,8 @@ Concepts Introduced:
     * using various http libraries
     * python objects and classes
     * extending classes and overriding methods
-    * hiding private methods
-    * 'CONSTANTS' by convention still mutable
+    * hiding private methods by convention
+    * constants by convention, still mutable
 """
 
 # parse command line arguments... makes you look like you know what your doing.
@@ -49,14 +49,18 @@ __status__ = "Alpha"
 # Global variables.  By convention in Python ALL_CAPS are constants, but beware
 # they are not really constants and can be changed (they are mutable)
 JSONRPC_VERSION = "2.0"
+# the eAPI agent on the switch only responds to the runCmds
 JSONRPC_METHOD = "runCmds"
+# I guess someday version 2 may come out...
 EAPI_VERSION = 1
+# This can be anything.
 EAPI_CLIENT_ID = "AristaProgrammability-1"
 
+# when send eAPI requests we want to instruct
 HTTP_HEADERS = {'Content-Type': 'application/json'}
 
 def client_factory(approach="requests"):
-
+    """A factory function will """
 
     # a bit of trickery to get the class from its name
     klass = approach.capitalize() + "EapiClient"
@@ -133,6 +137,7 @@ def create_jsonrpc_payload(commands, format="json", timestamps=False,
         #   "id": "EapiExplorer-1"
         # }
         "format": format,
+
         # timestamps: adds a _meta item to the result:
         # Ex.
         #   "_meta": {
@@ -140,21 +145,25 @@ def create_jsonrpc_payload(commands, format="json", timestamps=False,
         #     "execStartTime": 1476185494.32511
         #   },
         "timestamps": timestamps,
+
         # autoComplete: allow partial commands within eAPI. Don't do this. Be
         #               specific.
         # ex. 'sh ip int'
         "autoComplete": auto_complete,
+
         # expandAliases: Allow calling used defined command aliases
         # ex.
         #  switch(config)#alias ship show ip interfaces
         #   ...and now this works:
         #  commands = ["ship"]
         "expandAliases": expand_aliases,
+
         # cmds: list of command strings or dictionary objects.
         # more advanced commands can be revisioned or respond to prompts:
         #  ex. commands = [{"cmd": "enable", "input": "s3cr3t"},
         #                  "show running-config"]
         "cmds": commands,
+
         # version: should be 1 by default
         "version": version,
     }
@@ -280,6 +289,9 @@ class JsonrpclibEapiClient(BaseEapiClient):
 #     def send(self, commands, **kwargs):
 #         pass
 
+# I like the reqests base approach best :)  So, let's create an alais
+EapiClient = RequestsEapiClient
+
 def main():
     from argparse import ArgumentParser
     parser = ArgumentParser(prog="arcomm")
@@ -328,5 +340,13 @@ def main():
         print "RESPONSE:"
         pprint.pprint(response)
 
+####
+# Python does not call the main function automatically. So most folks do what
+# lies below.
+#
+# The benefit here is when called from as a command line utility
+# the main() function runs as exepected, but if you 'import' this module main()
+# is not called.
+####
 if __name__ == "__main__":
     main()
