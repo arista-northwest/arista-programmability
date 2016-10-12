@@ -33,7 +33,6 @@ import sys
 import urllib2
 import requests
 import jsonrpclib
-import pyeapi
 
 # Python metadata
 __author__ = "Jesse Mather"
