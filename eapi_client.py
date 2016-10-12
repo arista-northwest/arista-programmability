@@ -56,7 +56,8 @@ EAPI_VERSION = 1
 # This can be anything.
 EAPI_CLIENT_ID = "AristaProgrammability-1"
 
-# when send eAPI requests we want to instruct
+# when sending eAPI requests we want to tell the server we are sending JSON and
+# we want JSON back
 HTTP_HEADERS = {'Content-Type': 'application/json'}
 
 def client_factory(approach="requests"):
@@ -102,11 +103,11 @@ def create_jsonrpc_payload(commands, format="json", timestamps=False,
         version = EAPI_VERSION
 
     params = {
-        # format: output to 'json' and 'text' are supported. text
-        # output will look just like the CLI and somethings is required if the
-        # command has not yet been converted
+        # format: output to 'json' and 'text' are supported. 'text'
+        # output will look just like the CLI and is required if the command has
+        # not been converted
         # Ex.
-        #   "show clock" w/ json format
+        #   "show clock" w/ json format :(
         #
         # {
         #   "jsonrpc": "2.0",
@@ -126,7 +127,7 @@ def create_jsonrpc_payload(commands, format="json", timestamps=False,
         #   }
         # }
         #
-        # Now with "text" formatting:
+        # Now with "text" formatting :)
         # {
         #   "jsonrpc": "2.0",
         #   "result": [
@@ -152,15 +153,15 @@ def create_jsonrpc_payload(commands, format="json", timestamps=False,
         # ex. 'sh ip int'
         "autoComplete": auto_complete,
 
-        # expandAliases: Allow calling used defined command aliases
-        # ex.
+        # expandAliases: Allow calling user defined command aliases
+        # Ex.
         #  switch(config)#alias ship show ip interfaces
         #   ...and now this works:
         #  commands = ["ship"]
         "expandAliases": expand_aliases,
 
         # cmds: list of command strings or dictionary objects.
-        # more advanced commands can be revisioned or respond to prompts:
+        # More advanced commands can be revisioned or respond to prompts:
         #  ex. commands = [{"cmd": "enable", "input": "s3cr3t"},
         #                  "show running-config"]
         "cmds": commands,
@@ -284,8 +285,8 @@ class RequestsEapiClient(BaseEapiClient):
         #
         # live coding refactor?
         #
-        # if "result" not in response:
-        #     raise EapiException(response["error"]["message"])
+        if "result" not in response:
+            raise EapiException(response["error"]["message"])
 
         return response["result"]
 
@@ -352,11 +353,16 @@ def main():
     for switch in args.switches:
         adapter_class = client_factory(approach)
         client = adapter_class(switch, creds=creds)
-
-        response = client.send(commands)
-
+        response = None
         print "HOST:", switch
-        print "APPROACH:", approach.capitalize()
+        print "APPROACH:", approach
+
+        try:
+            response = client.send(commands)
+        except EapiException as exc:
+            print "ERROR:", exc.message
+
+
         print "RESPONSE:"
         pprint.pprint(response)
 
