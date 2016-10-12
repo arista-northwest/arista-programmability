@@ -61,7 +61,7 @@ HTTP_HEADERS = {'Content-Type': 'application/json'}
 
 def client_factory(approach="requests"):
     """This factory function will figure out what class matches your approach.
-    This is a nice way to avoid the ugly if/elsif/else block"""
+    This is a nice way to avoid an ugly if/elsif/else block"""
 
     # a bit of trickery to get the class from its name
     klass = approach.capitalize() + "EapiClient"
@@ -72,7 +72,7 @@ def client_factory(approach="requests"):
     # return the class itself uninitialized
     return get_class(klass)
 
-def create_jsonrpc_payload(commands, format="json", timestamps=False,
+def create_eapi_payload(commands, format="json", timestamps=False,
                            auto_complete=False, expand_aliases=False,
                            version=None):
     """
@@ -234,7 +234,7 @@ class Urllib2EapiClient(BaseEapiClient):
 
     def send(self, commands, **kwargs):
         endpoint ="http://{}/command-api".format(self.switch_addr)
-        payload = create_jsonrpc_payload(commands, **kwargs)
+        payload = create_eapi_payload(commands, **kwargs)
 
         username, password = self.creds
 
@@ -255,7 +255,7 @@ class Urllib2EapiClient(BaseEapiClient):
 
         # ok, if the command was invalid or failed in some way.. .we need to
         # deal with it
-        if "result" not in response:
+        if "error" in response:
             raise EapiException(response["error"]["message"])
 
         return response["result"]
@@ -264,8 +264,11 @@ class RequestsEapiClient(BaseEapiClient):
     """Use the awesome `requests` module to send commands."""
 
     def send(self, commands, **kwargs):
+
+        # note: this code violates the DRY pricipal (same thing in the
+        # Urllib2 version of the EapiClient class)
         endpoint ="http://{}/command-api".format(self.switch_addr)
-        payload = create_jsonrpc_payload(commands, **kwargs)
+        payload = create_eapi_payload(commands, **kwargs)
 
         response = requests.post(endpoint, auth=self.creds,
                                  headers=HTTP_HEADERS,
@@ -278,19 +281,15 @@ class RequestsEapiClient(BaseEapiClient):
         # re-assign response... I think this is ok... maybe it's not
         response = response.json()
 
-        # note: this code violates the DRY pricipal (same thing in the
-        # Urllib2 version of the EapiClient class)
-        # I know how to fix... do you?
-        #
-        # live coding refactor?
-        #
-        if "result" not in response:
+        # note: this code violates the DRY pricipal again...
+        if "error" in response:
             raise EapiException(response["error"]["message"])
 
         return response["result"]
 
 class JsonrpclibEapiClient(BaseEapiClient):
-    """Simple client based in jsonrpclib, but it has terrible documentation :(
+    """
+    Simple client based in jsonrpclib, but it has terrible documentation :(
     """
 
     def send(self, commands, **kwargs):
@@ -305,7 +304,7 @@ EapiClient = RequestsEapiClient
 
 def main():
     from argparse import ArgumentParser
-    parser = ArgumentParser(prog="arcomm")
+    parser = ArgumentParser(prog="eapiclient")
     arg = parser.add_argument
 
     arg("switches", nargs="*")
@@ -353,6 +352,7 @@ def main():
         adapter_class = client_factory(approach)
         client = adapter_class(switch, creds=creds)
         response = None
+
         print "HOST:", switch
         print "APPROACH:", approach
 
@@ -363,6 +363,7 @@ def main():
 
 
         print "RESPONSE:"
+
         pprint.pprint(response)
 
 ####
