@@ -10,6 +10,11 @@ Preparation
 - 8GB Ram
 - 4 Cores
 
+### Clone the repo
+
+PS > cd <path-to-projects>
+PS > git clone https://github.com/arista-northwest/arista-programmability.git
+
 ### Docker
 
 1. Enable Hyper-V
@@ -47,17 +52,16 @@ spanning-tree mode mstp
 !
 aaa authorization exec default local
 !
-no aaa root
+aaa root secret root
 aaa authentication policy local allow-nopassword-remote-login
 !
 username admin privilege 15 role network-admin nopassword
 !
 interface Management1
+   description Connected to DockerNAT vswitch
    ip address 10.0.75.100/24
 !
 no ip routing
-!
-router ospfv3
 !
 management api http-commands
    protocol http
