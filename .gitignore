@@ -470,4 +470,4 @@ build/
 
 
 ### Don't add EosSdk stubs ###
-EosSdk/*
+EosSdk-stubs*
