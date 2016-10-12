@@ -31,6 +31,8 @@ import sys
 
 # really only need one of these... but we are demonstrating various methods
 import urllib2
+
+# pip installable
 import requests
 import jsonrpclib
 
@@ -194,17 +196,32 @@ class BaseEapiClient(object):
         self.creds = creds
 
         self._on_init(**kwargs)
-
-    def _on_init(self, **kwargs):
-        """Call this method after __init__ is called. i.e. when a new object is
-        created. If not overridden, it does nothing. The purpose of the '_'
-        is to signify that this method is for internal use.
-
-        Note: Python does NOT enforce 'private' or 'protected' methods.
-        """
-        return
+    #
+    # def _on_init(self, **kwargs):
+    #     """Call this method after __init__ is called. i.e. when a new object is
+    #     created. If not overridden, it does nothing. The purpose of the '_'
+    #     is to signify that this method is for internal use.
+    #
+    #     Note: Python does NOT enforce 'private' or 'protected' methods.
+    #     """
+    #     return
 
     def send(self, commands, **kwargs):
+        """refactor to remove code duplication.  We create the payload and
+        endpoint before calling the "real" send.  We also handle errors
+        here so implementors don't have to worry about it"""
+
+        endpoint ="http://{}/command-api".format(self.switch_addr)
+        payload = create_eapi_payload(commands, **kwargs)
+
+        response = self._send(endpoint, payload)
+
+        if "error" in response:
+            raise EapiException(response["error"]["message"])
+
+        return response["result"]
+
+    def _send(self, endpoint, payload):
         """This is an unimplemented method that is intended to be overridden.
         There is a newer (more enforcing) way to do this by using
         'Abstract Base Classes' and decorators but that sounds scary.  So maybe
@@ -232,9 +249,7 @@ class BaseEapiClient(object):
 class Urllib2EapiClient(BaseEapiClient):
     """Batteries included, but yuck!"""
 
-    def send(self, commands, **kwargs):
-        endpoint ="http://{}/command-api".format(self.switch_addr)
-        payload = create_eapi_payload(commands, **kwargs)
+    def _send(self, endpoint, payload):
 
         username, password = self.creds
 
@@ -251,24 +266,13 @@ class Urllib2EapiClient(BaseEapiClient):
 
         handler = urllib2.urlopen(req, data=json.dumps(payload))
 
-        response = json.load(handler)
+        return json.load(handler)
 
-        # ok, if the command was invalid or failed in some way.. .we need to
-        # deal with it
-        if "error" in response:
-            raise EapiException(response["error"]["message"])
-
-        return response["result"]
 
 class RequestsEapiClient(BaseEapiClient):
     """Use the awesome `requests` module to send commands."""
 
-    def send(self, commands, **kwargs):
-
-        # note: this code violates the DRY pricipal (same thing in the
-        # Urllib2 version of the EapiClient class)
-        endpoint ="http://{}/command-api".format(self.switch_addr)
-        payload = create_eapi_payload(commands, **kwargs)
+    def _send(self, endpoint, payload):
 
         response = requests.post(endpoint, auth=self.creds,
                                  headers=HTTP_HEADERS,
@@ -279,13 +283,7 @@ class RequestsEapiClient(BaseEapiClient):
         response.raise_for_status()
 
         # re-assign response... I think this is ok... maybe it's not
-        response = response.json()
-
-        # note: this code violates the DRY pricipal again...
-        if "error" in response:
-            raise EapiException(response["error"]["message"])
-
-        return response["result"]
+        return response.json()
 
 class JsonrpclibEapiClient(BaseEapiClient):
     """
@@ -311,7 +309,7 @@ def main():
 
     arg("-v", "--version", action="store_true", help="display version info")
 
-    arg("--encoding", default="text", choices=["json", "text"],
+    arg("-e", "--encoding", default="text", choices=["json", "text"],
         help="control output formatting")
 
     arg("-a", "--approach",
@@ -338,7 +336,7 @@ def main():
 
     # using stdin is a slick way to pipe in multiple commands
     # try:
-    #   python eapi_client.py <switch_addr>
+    #   python eapiclient.py <switch_addr>
     #   show version
     #   show interfaces
     #   ^D
