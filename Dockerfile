@@ -19,7 +19,7 @@ ENV HOME /root
 WORKDIR /root
 
 # EosSdk Stubs
-ADD EosSdk/EosSdk-stubs-1.8.0.tar.gz /root/
+ADD ./EosSdk-stubs-1.8.0.tar.gz /root/
 
 RUN \
   cd /root/EosSdk-stubs-1.8.0 && \
