@@ -15,6 +15,17 @@ Preparation
 PS > cd <path-to-projects>
 PS > git clone https://github.com/arista-northwest/arista-programmability.git
 
+
+### EosSdk Stubs
+
+1. Download from: https://www.arista.com/en/support/software-download
+   * Expand "EOS SDK" -> "v1.8.0"
+   * Click on: EosSdk-stubs-1.8.0.tar.gz
+
+2. Copy the tar.gz file to the arists-programmability project folder
+
+3. Docker build will take care of the rest
+
 ### Docker
 
 1. Enable Hyper-V
@@ -70,11 +81,6 @@ management api http-commands
 !
 end
 ```
-
-
-### EosSdk Stubs
-
-1. Download the stubs link provided externally
 
 ### Building switch agents
 
