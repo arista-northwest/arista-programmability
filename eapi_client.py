@@ -60,7 +60,8 @@ EAPI_CLIENT_ID = "AristaProgrammability-1"
 HTTP_HEADERS = {'Content-Type': 'application/json'}
 
 def client_factory(approach="requests"):
-    """A factory function will """
+    """This factory function will figure out what class matches your approach.
+    This is a nice way to avoid the ugly if/elsif/else block"""
 
     # a bit of trickery to get the class from its name
     klass = approach.capitalize() + "EapiClient"
@@ -178,12 +179,15 @@ def create_jsonrpc_payload(commands, format="json", timestamps=False,
 
     return payload
 
+class EapiException(Exception):
+    pass
+
 class BaseEapiClient(object):
 
     def __init__(self, switch_addr, creds=("admin", ""), **kwargs):
         """Constructor for base class. Does not need to be overrided, but it
         can be if more options are needed.  I typical will just add used defined
-        initializer if that is needed.  In this case `kwargs` is passed through.
+        initializer if that is needed. In this case `kwargs` is passed through.
         """
 
         self.switch_addr = switch_addr
@@ -194,7 +198,7 @@ class BaseEapiClient(object):
     def _on_init(self, **kwargs):
         """Call this method after __init__ is called. i.e. when a new object is
         created. If not overridden, it does nothing. The purpose of the '_'
-        is to signify that this method is 'private' or 'internal'.
+        is to signify that this method is for internal use.
 
         Note: Python does NOT enforce 'private' or 'protected' methods.
         """
@@ -226,7 +230,7 @@ class BaseEapiClient(object):
 #############################
 
 class Urllib2EapiClient(BaseEapiClient):
-    """Batteries included, but yucky."""
+    """Batteries included, but yuck!"""
 
     def send(self, commands, **kwargs):
         endpoint ="http://{}/command-api".format(self.switch_addr)
@@ -235,7 +239,7 @@ class Urllib2EapiClient(BaseEapiClient):
         username, password = self.creds
 
         req = urllib2.Request(endpoint)
-        # {'Content-Type': 'application/json'}
+
         req.add_header("Content-Type", HTTP_HEADERS["Content-Type"])
         password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
         password_manager.add_password(None, endpoint, username, password)
@@ -247,7 +251,14 @@ class Urllib2EapiClient(BaseEapiClient):
 
         handler = urllib2.urlopen(req, data=json.dumps(payload))
 
-        return json.load(handler)["result"]
+        response = json.load(handler)
+
+        # ok, if the command was invalid or failed in some way.. .we need to
+        # deal with it
+        if "result" not in response:
+            raise EapiException(response["error"]["message"])
+
+        return response["result"]
 
 class RequestsEapiClient(BaseEapiClient):
     """Use the awesome `requests` module to send commands."""
@@ -264,7 +275,19 @@ class RequestsEapiClient(BaseEapiClient):
         # requests does not raise an exception by default
         response.raise_for_status()
 
-        return response.json()["result"]
+        # re-assign response... I think this is ok... maybe it's not
+        response = response.json()
+
+        # note: this code violates the DRY pricipal (same thing in the
+        # Urllib2 version of the EapiClient class)
+        # I know how to fix... do you?
+        #
+        # live coding refactor?
+        #
+        # if "result" not in response:
+        #     raise EapiException(response["error"]["message"])
+
+        return response["result"]
 
 class JsonrpclibEapiClient(BaseEapiClient):
     """Simple client based in jsonrpclib, but it has terrible documentation :(
@@ -276,18 +299,6 @@ class JsonrpclibEapiClient(BaseEapiClient):
                                                    self.switch_addr)
         conn = jsonrpclib.Server(url)
         return conn.runCmds(1, commands)[0]
-
-# class PyeapiClient(BaseEapiClient):
-#     """Arsta's Eos-plus team wrapper eAPI calls.  Can use a config file to
-#     simplify command line arguments or support switches with varying creds
-#     or transports"""
-#
-#     def _on_init(self, **kwargs):
-#         """overriding _on_init to load the config file"""
-#         self.config_file = kwargs.get("config_file", None)
-#
-#     def send(self, commands, **kwargs):
-#         pass
 
 # I like the reqests base approach best :)  So, let's create an alais
 EapiClient = RequestsEapiClient
@@ -306,7 +317,7 @@ def main():
 
     arg("-a", "--approach",
         default="requests",
-        choices=["urllib2", "requests", "jsonrpclib"] #, "pyeapi"],
+        choices=["urllib2", "requests", "jsonrpclib"], #, "pyeapi"],
         help="choose which libraries to use for this request")
 
     arg("-u", "--username", default="admin",
@@ -326,9 +337,18 @@ def main():
 
     encoding = args.encoding
 
+    # using stdin is a slick way to pipe in multiple commands
+    # try:
+    #   python eapi_client.py <switch_addr>
+    #   show version
+    #   show interfaces
+    #   ^D
+    #   ^D
     for line in sys.stdin:
         commands.append(line.strip())
 
+    # For multiple switches we just looop through them serially... There are
+    # however several methods for running this asycnronously
     for switch in args.switches:
         adapter_class = client_factory(approach)
         client = adapter_class(switch, creds=creds)
