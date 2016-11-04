@@ -12,9 +12,10 @@ Preparation
 
 ### Clone the repo
 
+```ps1
 PS > cd <path-to-projects>
 PS > git clone https://github.com/arista-northwest/arista-programmability.git
-
+```
 
 ### EosSdk Stubs
 
